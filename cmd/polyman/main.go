@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 
 	"github.com/gorilla/mux"
@@ -36,41 +38,52 @@ func CallHandler(w http.ResponseWriter, r *http.Request) {
 		args = append(args, root_flag)
 	}
 
-	config := r.Header.Get("x-polyglot-config")
+	config := r.Header.Get("x-polyman-config")
 	if config != "" {
 		config, _ = homedir.Expand(config)
-		config_flag := "--config=" + config
+		config_flag := "--config_set_path=" + config
 		args = append(args, config_flag)
 	}
 
 	body, _ := ioutil.ReadAll(r.Body)
 	input := string(body[:])
 
-	res := Call(input, args)
+	res, err := Call(input, args)
+	if err != nil {
+		http.Error(w, string(res[:]), http.StatusInternalServerError)
+	}
+
 	w.Write(res)
 }
 
-func Call(body string, opts []string) []byte {
+func Call(body string, opts []string) ([]byte, error) {
 	c1 := exec.Command("echo", body)
 	args := []string{"-jar", polyglot, "--command=call"}
 	args = append(args, opts...)
 	c2 := exec.Command("java", args...)
 	c2.Stdin, _ = c1.StdoutPipe()
 	var b bytes.Buffer
+	var e bytes.Buffer
 	c2.Stdout = &b
+	c2.Stderr = &e
 	c1.Start()
 	c2.Start()
 	c1.Wait()
-	c2.Wait()
-	return b.Bytes()
+	err := c2.Wait()
+	if err != nil {
+		return e.Bytes(), err
+	}
+	return b.Bytes(), nil
 }
 
 func List(opts []string) []byte {
 	args := []string{"-jar", polyglot, "--command=list_services", "--with_message=true"}
 	args = append(args, opts...)
+	fmt.Printf("%v\n", args)
 	c1 := exec.Command("java", args...)
 	var b bytes.Buffer
 	c1.Stdout = &b
+	c1.Stderr = os.Stderr
 	c1.Start()
 	c1.Wait()
 	return b.Bytes()
@@ -81,6 +94,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListHandler(w http.ResponseWriter, r *http.Request) {
+	v := r.URL.Query()
 	args := []string{}
 	root := r.Header.Get("x-polyman-root")
 	if root != "" {
@@ -88,10 +102,26 @@ func ListHandler(w http.ResponseWriter, r *http.Request) {
 		root_flag := "--proto_discovery_root=" + root
 		args = append(args, root_flag)
 	}
+	config := r.Header.Get("x-polyman-config")
+	if config != "" {
+		config, _ = homedir.Expand(config)
+		config_flag := "--config_set_path=" + config
+		args = append(args, config_flag)
+	}
+	methodFilter := v.Get("method")
+	if methodFilter != "" {
+		methodFlag := "--method_filter=" + methodFilter
+		args = append(args, methodFlag)
+	}
+	serviceFilter := v.Get("service")
+	if serviceFilter != "" {
+		serviceFlag := "--service_filter=" + serviceFilter
+		args = append(args, serviceFlag)
+	}
 
+	fmt.Printf("%v\n", args)
 	res := List(args)
 	w.Write(res)
-
 }
 
 func main() {
