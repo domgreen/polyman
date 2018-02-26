@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -90,10 +91,6 @@ func List(opts []string) []byte {
 	return b.Bytes()
 }
 
-func HomeHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Gorilla!\n"))
-}
-
 func ListHandler(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	args := []string{}
@@ -125,40 +122,45 @@ func ListHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	// add ability to pass args for jar and port
-	currentUser, _ := user.Current()
+	var polyglotOverride = flag.String("polygot", "", "Location of Polyglot.jar")
+	var port = flag.String("port", "8000", "Port to run Polyman on")
 
-	polyglotDir := filepath.Join(currentUser.HomeDir, ".polyglot")
-	if err := os.MkdirAll(polyglotDir, 0775); err != nil {
-		fmt.Println("failed creating dir")
+	flag.Parse()
+	polyglot = *polyglotOverride
+	if polyglot == "" {
+		currentUser, _ := user.Current()
+		polyglotDir := filepath.Join(currentUser.HomeDir, ".polyglot")
+		if err := os.MkdirAll(polyglotDir, 0775); err != nil {
+			fmt.Println("failed creating dir")
+		}
+		polyglot = filepath.Join(currentUser.HomeDir, ".polyglot", "polyglot.jar")
+		if _, err := os.Stat(polyglot); os.IsNotExist(err) {
+			fmt.Println("Downloading polyglot 1.6.0")
+			resp, err := http.Get("https://github.com/grpc-ecosystem/polyglot/releases/download/v1.6.0/polyglot.jar")
+			if err != nil {
+				fmt.Println("http GET failed " + err.Error())
+				return
+			}
+
+			jarData, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				fmt.Println("ioutil.ReadAll failed " + err.Error())
+				return
+			}
+
+			if err := ioutil.WriteFile(polyglot, jarData, 0644); err != nil {
+				fmt.Println("writing output failed " + err.Error())
+				return
+			}
+
+			resp.Body.Close()
+			fmt.Println("Download finished")
+		}
 	}
-	polyglot = filepath.Join(currentUser.HomeDir, ".polyglot", "polyglot.jar")
-	if _, err := os.Stat(polyglot); os.IsNotExist(err) {
-		fmt.Println("Downloading polyglot 1.6.0")
-		resp, err := http.Get("https://github.com/grpc-ecosystem/polyglot/releases/download/v1.6.0/polyglot.jar")
-		if err != nil {
-			fmt.Println("http GET failed " + err.Error())
-			return
-		}
 
-		jarData, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			fmt.Println("ioutil.ReadAll failed " + err.Error())
-			return
-		}
-
-		if err := ioutil.WriteFile(polyglot, jarData, 0644); err != nil {
-			fmt.Println("writing output failed " + err.Error())
-			return
-		}
-
-		resp.Body.Close()
-		fmt.Println("Download finished")
-	}
-
+	fmt.Println("Starting Polyman Proxy - localhost:" + *port)
 	r := mux.NewRouter()
 	r.HandleFunc("/{service}/{method}", CallHandler).Methods("POST")
 	r.HandleFunc("/list_services", ListHandler).Methods("GET")
-	r.HandleFunc("/", HomeHandler)
-	log.Fatal(http.ListenAndServe(":8000", r))
+	log.Fatal(http.ListenAndServe(":"+*port, r))
 }
