@@ -73,7 +73,7 @@ x-polyman-root: ~/go/src/google.golang.org/grpc/examples/helloworld
 
 ## Listing Services
 
-![PolymanList](doc/img/polymanlist.png)
+![PolymanList](docs/img/polymanlist.png)
 
 Listing Services gives you detailed information about the Services, Methods and their message structure via a HTTP **GET** request.
 
