@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 
 	"github.com/gorilla/mux"
 	homedir "github.com/mitchellh/go-homedir"
@@ -20,29 +22,29 @@ var (
 func CallHandler(w http.ResponseWriter, r *http.Request) {
 	service := mux.Vars(r)["service"]
 	method := mux.Vars(r)["method"]
-	method_flag := "--full_method=" + service + "/" + method
+	methodFlag := "--full_method=" + service + "/" + method
 	args := []string{}
-	args = append(args, method_flag)
+	args = append(args, methodFlag)
 
-	endpoint_flag := "--endpoint=" + r.Host
+	endpointFlag := "--endpoint=" + r.Host
 	endpointHeader := r.Header.Get("x-polyman-endpoint")
 	if endpointHeader != "" {
-		endpoint_flag = "--endpoint=" + endpointHeader
+		endpointFlag = "--endpoint=" + endpointHeader
 	}
-	args = append(args, endpoint_flag)
+	args = append(args, endpointFlag)
 
 	root := r.Header.Get("x-polyman-root")
 	if root != "" {
 		root, _ = homedir.Expand(root)
-		root_flag := "--proto_discovery_root=" + root
-		args = append(args, root_flag)
+		rootFlag := "--proto_discovery_root=" + root
+		args = append(args, rootFlag)
 	}
 
 	config := r.Header.Get("x-polyman-config")
 	if config != "" {
 		config, _ = homedir.Expand(config)
-		config_flag := "--config_set_path=" + config
-		args = append(args, config_flag)
+		configFlag := "--config_set_path=" + config
+		args = append(args, configFlag)
 	}
 
 	body, _ := ioutil.ReadAll(r.Body)
@@ -79,7 +81,6 @@ func Call(body string, opts []string) ([]byte, error) {
 func List(opts []string) []byte {
 	args := []string{"-jar", polyglot, "--command=list_services", "--with_message=true"}
 	args = append(args, opts...)
-	fmt.Printf("%v\n", args)
 	c1 := exec.Command("java", args...)
 	var b bytes.Buffer
 	c1.Stdout = &b
@@ -99,14 +100,14 @@ func ListHandler(w http.ResponseWriter, r *http.Request) {
 	root := r.Header.Get("x-polyman-root")
 	if root != "" {
 		root, _ = homedir.Expand(root)
-		root_flag := "--proto_discovery_root=" + root
-		args = append(args, root_flag)
+		rootFlag := "--proto_discovery_root=" + root
+		args = append(args, rootFlag)
 	}
 	config := r.Header.Get("x-polyman-config")
 	if config != "" {
 		config, _ = homedir.Expand(config)
-		config_flag := "--config_set_path=" + config
-		args = append(args, config_flag)
+		configFlag := "--config_set_path=" + config
+		args = append(args, configFlag)
 	}
 	methodFilter := v.Get("method")
 	if methodFilter != "" {
@@ -119,14 +120,41 @@ func ListHandler(w http.ResponseWriter, r *http.Request) {
 		args = append(args, serviceFlag)
 	}
 
-	fmt.Printf("%v\n", args)
 	res := List(args)
 	w.Write(res)
 }
 
 func main() {
-	polyglot = "~/polyglot.jar"
-	polyglot, _ = homedir.Expand(polyglot)
+	// add ability to pass args for jar and port
+	currentUser, _ := user.Current()
+
+	polyglotDir := filepath.Join(currentUser.HomeDir, ".polyglot")
+	if err := os.MkdirAll(polyglotDir, 0775); err != nil {
+		fmt.Println("failed creating dir")
+	}
+	polyglot = filepath.Join(currentUser.HomeDir, ".polyglot", "polyglot.jar")
+	if _, err := os.Stat(polyglot); os.IsNotExist(err) {
+		fmt.Println("Downloading polyglot 1.6.0")
+		resp, err := http.Get("https://github.com/grpc-ecosystem/polyglot/releases/download/v1.6.0/polyglot.jar")
+		if err != nil {
+			fmt.Println("http GET failed " + err.Error())
+			return
+		}
+
+		jarData, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println("ioutil.ReadAll failed " + err.Error())
+			return
+		}
+
+		if err := ioutil.WriteFile(polyglot, jarData, 0644); err != nil {
+			fmt.Println("writing output failed " + err.Error())
+			return
+		}
+
+		resp.Body.Close()
+		fmt.Println("Download finished")
+	}
 
 	r := mux.NewRouter()
 	r.HandleFunc("/{service}/{method}", CallHandler).Methods("POST")
