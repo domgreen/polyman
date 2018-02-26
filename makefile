@@ -8,13 +8,13 @@ dep:
 	dep ensure
 
 depbuild: dep
-	go build cmd/polyman/main.go
+	go build -o polyman cmd/polyman/main.go
 
 run:
 	vgo run cmd/polyman/main.go
 
 build:
-	vgo build cmd/polyman/main.go
+	vgo build -o polyman cmd/polyman/main.go
 
 
 .PHONY: build run depbuild default
