@@ -33,6 +33,10 @@ make depbuild
 
 ```
 polyman [--polyglot] [--port]
+
+--polyglot - optional parameter to supply a different polyglot.jar file. If this is not supplied the latest version will be downloaded to ~/.polyglot and used.
+
+--port     - optional parameter to supply a new port for polyman.
 ```
 
 ## Making A Request
@@ -101,7 +105,7 @@ helloworld.Greeter -> ~/go/src/google.golang.org/grpc/examples/helloworld/hellow
 
 This response shows a single service `helloworld.Greeter` with two methods `SayHello` and `SayHelloAgain`. It also shows the message definition for making the call.
  
-## Options
+## Optional Headers
 
 #### Polyman Config:
 ```
