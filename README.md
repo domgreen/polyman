@@ -6,6 +6,16 @@ Polyman is designed to work with [Postman](https://www.getpostman.com/) and brin
 
 ![Polyman](docs/img/polyman.png)
 
+### Benifits of Polyman
+
+* Brings gRPC to Postman:
+ * Amazing UI
+ *  Allows saving of collections
+ *  Replayable requests
+ *  Call many gRPC services from one place
+* Simplifies Polyglot usage:
+ *  No need to run via command line
+
 ### Installation
 
 Download source:
