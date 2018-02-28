@@ -20,7 +20,7 @@ Polyman is designed to work with [Postman](https://www.getpostman.com/) and brin
 
 ```
 curl -LO https://github.com/domgreen/polyman/releases/download/v0.0.0-alpha/polyman-darwin-amd64
-mv polyman-darwin-amd polyman
+mv polyman-darwin-amd64 polyman
 chmod +x polyman 
 ```
 (will need *Java8* to run polyglot under the hood)
