@@ -19,7 +19,9 @@ Polyman is designed to work with [Postman](https://www.getpostman.com/) and brin
 ### Installation
 
 ```
-curl -O 
+curl -LO https://github.com/domgreen/polyman/releases/download/v0.0.0-alpha/polyman-darwin-amd64
+mv polyman-darwin-amd polyman
+chmod +x polyman 
 ```
 (will need *Java8* to run polyglot under the hood)
 
