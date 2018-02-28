@@ -18,6 +18,13 @@ Polyman is designed to work with [Postman](https://www.getpostman.com/) and brin
 
 ### Installation
 
+```
+curl -O 
+```
+(will need *Java8* to run polyglot under the hood)
+
+#### From Source
+
 Download source:
 ```
 git clone git@github.com:domgreen/polyman.git
@@ -26,11 +33,6 @@ git clone git@github.com:domgreen/polyman.git
 Build source (with vgo):
 ```
 make
-```
-
-Build source (with dep):
-```
-make depbuild
 ```
 
 ### Adding Polyman Proxy to Postman
