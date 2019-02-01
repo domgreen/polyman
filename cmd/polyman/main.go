@@ -21,37 +21,45 @@ var (
 )
 
 func CallHandler(w http.ResponseWriter, r *http.Request) {
+	// Usage with Polyglot 2.0 : java -jar polyglot.jar [options] [command] [command options]
 	service := mux.Vars(r)["service"]
 	method := mux.Vars(r)["method"]
 	methodFlag := "--full_method=" + service + "/" + method
-	args := []string{}
-	args = append(args, methodFlag)
+	commandOptions := []string{}
+	options := []string{}
+	commandOptions = append(commandOptions, methodFlag)
 
 	endpointFlag := "--endpoint=" + r.Host
 	endpointHeader := r.Header.Get("x-polyman-endpoint")
 	if endpointHeader != "" {
 		endpointFlag = "--endpoint=" + endpointHeader
 	}
-	args = append(args, endpointFlag)
+	commandOptions = append(commandOptions, endpointFlag)
+
+	metadataHeader := r.Header.Get("x-polyman-metadata")
+	if metadataHeader != "" {
+		metadataFlag := "--metadata=" + metadataHeader
+		commandOptions = append(commandOptions, metadataFlag)
+	}
 
 	root := r.Header.Get("x-polyman-root")
 	if root != "" {
 		root, _ = homedir.Expand(root)
 		rootFlag := "--proto_discovery_root=" + root
-		args = append(args, rootFlag)
+		options = append(options, rootFlag)
 	}
 
 	config := r.Header.Get("x-polyman-config")
 	if config != "" {
 		config, _ = homedir.Expand(config)
 		configFlag := "--config_set_path=" + config
-		args = append(args, configFlag)
+		options = append(options, configFlag)
 	}
 
 	body, _ := ioutil.ReadAll(r.Body)
 	input := string(body[:])
 
-	res, err := Call(input, args)
+	res, err := Call(input, commandOptions, options)
 	if err != nil {
 		http.Error(w, string(res[:]), http.StatusInternalServerError)
 	}
@@ -59,10 +67,12 @@ func CallHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(res)
 }
 
-func Call(body string, opts []string) ([]byte, error) {
+func Call(body string, commandOpts []string, opts []string) ([]byte, error) {
 	c1 := exec.Command("echo", body)
-	args := []string{"-jar", polyglot, "--command=call"}
+	args := []string{"-jar", polyglot}
 	args = append(args, opts...)
+	args = append(args, "call")
+	args = append(args, commandOpts...)
 	c2 := exec.Command("java", args...)
 	c2.Stdin, _ = c1.StdoutPipe()
 	var b bytes.Buffer
@@ -79,9 +89,12 @@ func Call(body string, opts []string) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func List(opts []string) []byte {
-	args := []string{"-jar", polyglot, "--command=list_services", "--with_message=true"}
+func List(commandOpts []string, opts []string) []byte {
+	args := []string{"-jar", polyglot}
 	args = append(args, opts...)
+	args = append(args, "list_services")
+	args = append(args, commandOpts...)
+	args = append(args, "--with_message=true")
 	c1 := exec.Command("java", args...)
 	var b bytes.Buffer
 	c1.Stdout = &b
@@ -93,31 +106,32 @@ func List(opts []string) []byte {
 
 func ListHandler(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
-	args := []string{}
+	commandOptions := []string{}
+	options := []string{}
 	root := r.Header.Get("x-polyman-root")
 	if root != "" {
 		root, _ = homedir.Expand(root)
 		rootFlag := "--proto_discovery_root=" + root
-		args = append(args, rootFlag)
+		options = append(options, rootFlag)
 	}
 	config := r.Header.Get("x-polyman-config")
 	if config != "" {
 		config, _ = homedir.Expand(config)
 		configFlag := "--config_set_path=" + config
-		args = append(args, configFlag)
+		options = append(options, configFlag)
 	}
 	methodFilter := v.Get("method")
 	if methodFilter != "" {
 		methodFlag := "--method_filter=" + methodFilter
-		args = append(args, methodFlag)
+		commandOptions = append(commandOptions, methodFlag)
 	}
 	serviceFilter := v.Get("service")
 	if serviceFilter != "" {
 		serviceFlag := "--service_filter=" + serviceFilter
-		args = append(args, serviceFlag)
+		commandOptions = append(commandOptions, serviceFlag)
 	}
 
-	res := List(args)
+	res := List(commandOptions, options)
 	w.Write(res)
 }
 
@@ -133,10 +147,10 @@ func main() {
 		if err := os.MkdirAll(polyglotDir, 0775); err != nil {
 			fmt.Println("failed creating dir")
 		}
-		polyglot = filepath.Join(currentUser.HomeDir, ".polyglot", "polyglot.jar")
+		polyglot = filepath.Join(currentUser.HomeDir, ".polyglot", "polyglot.2.0.0.jar")
 		if _, err := os.Stat(polyglot); os.IsNotExist(err) {
-			fmt.Println("Downloading polyglot 1.6.0")
-			resp, err := http.Get("https://github.com/grpc-ecosystem/polyglot/releases/download/v1.6.0/polyglot.jar")
+			fmt.Println("Downloading polyglot 2.0.0")
+			resp, err := http.Get("https://github.com/grpc-ecosystem/polyglot/releases/download/v2.0.0/polyglot.jar")
 			if err != nil {
 				fmt.Println("http GET failed " + err.Error())
 				return
