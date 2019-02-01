@@ -21,7 +21,6 @@ var (
 )
 
 func CallHandler(w http.ResponseWriter, r *http.Request) {
-	// Usage with Polyglot 2.0 : java -jar polyglot.jar [options] [command] [command options]
 	service := mux.Vars(r)["service"]
 	method := mux.Vars(r)["method"]
 	methodFlag := "--full_method=" + service + "/" + method
