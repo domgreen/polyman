@@ -134,3 +134,9 @@ If this is supplied you *may* not need to supply the `x-polyman-root` header, de
 x-polyman-endpoint: 0.0.0.0:50051
 ```
 `x-polyman-endpoint` can be supplied if you are not using the Postman proxy settings; the URL would then be the location of the Polyman proxy, which would use this header to correctly forward the call.
+
+#### Polyman Metadata:
+```
+x-polyman-metadata: key1:value1,key2:value2
+```
+`x-polyman-metadata` can be supplied to add custom grpc metadata headers to calls made using Polyglot.
